@@ -40,7 +40,7 @@ def softmax_loss_naive(W, X, y, reg):
 
       for j in xrange(num_classes):
           if y[i] == j:
-              dW[:, j] += -X[i] * ((exp_sum - exp_scores[y[i]]) / exp_sum)
+              dW[:, j] += X[i] * ((exp_scores[y[i]] - exp_sum) / exp_sum)
           else:
               dW[:, j] += X[i] * (exp_scores[j] / exp_sum)
 
@@ -69,7 +69,30 @@ def softmax_loss_vectorized(W, X, y, reg):
   # here, it is easy to run into numeric instability. Don't forget the        #
   # regularization!                                                           #
   #############################################################################
-  pass
+  num_train = X.shape[0]
+  num_dims = X.shape[1]
+  num_classes = W.shape[1]
+
+  scores = X.dot(W)
+  scores_exp = np.exp(scores)
+  scores_exp_sum = np.sum(scores_exp, axis = 1)
+  scores_exp_minus_sum = scores_exp.copy() - scores_exp_sum[:, None]
+  correct_class_exp = scores_exp[np.arange(num_train), y]
+  loss = np.sum(-np.log(correct_class_exp / scores_exp_sum)) / num_train
+
+  # Set 1.0 wherever for the correct classes.
+  correct_class_flag = np.zeros([num_train, num_classes])
+  incorrect_class_flag = np.ones([num_train, num_classes])
+  correct_class_flag[np.arange(correct_class_flag.shape[0]), y] = 1.0
+  incorrect_class_flag[np.arange(incorrect_class_flag.shape[0]), y] = 0.0
+
+  # This matrix would have the weights to multiply X[i] with.
+  coeff = np.zeros_like(correct_class_flag)
+  coeff += np.multiply(incorrect_class_flag, (scores_exp))
+  coeff += np.multiply(correct_class_flag, (scores_exp_minus_sum))
+  coeff /= scores_exp_sum[:, None]
+  dW = X.T.dot(coeff)
+  dW /= num_train
   #############################################################################
   #                          END OF YOUR CODE                                 #
   #############################################################################
