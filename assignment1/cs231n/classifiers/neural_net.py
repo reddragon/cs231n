@@ -74,11 +74,14 @@ class TwoLayerNet(object):
     # Store the result in the scores variable, which should be an array of      #
     # shape (N, C).                                                             #
     #############################################################################
-    pass
+    z1 = X.dot(W1) + b1
+    a1 = np.maximum(0, z1)
+    z2 = a1.dot(W2) + b2
+    scores = z2
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
-    
+
     # If the targets are not given then jump out, we're done
     if y is None:
       return scores
@@ -92,23 +95,55 @@ class TwoLayerNet(object):
     # classifier loss. So that your results match ours, multiply the            #
     # regularization loss by 0.5                                                #
     #############################################################################
-    pass
+    num_train = X.shape[0]
+    num_dims = X.shape[1]
+    num_hidden = W2.shape[0]
+    num_classes = W2.shape[1]
+
+    scores_exp = np.exp(scores)
+    scores_exp_sum = np.sum(scores_exp, axis = 1)
+    scores_exp_minus_sum = scores_exp.copy() - scores_exp_sum[:, None]
+    correct_class_exp = scores_exp[np.arange(num_train), y]
+    loss = np.sum(-np.log(correct_class_exp / scores_exp_sum)) / num_train
+    loss += 0.5 * reg * (np.sum(np.square(W1)) + np.sum(np.square(W2)))
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
 
     # Backward pass: compute gradients
     grads = {}
+
     #############################################################################
     # TODO: Compute the backward pass, computing the derivatives of the weights #
     # and biases. Store the results in the grads dictionary. For example,       #
     # grads['W1'] should store the gradient on W1, and be a matrix of same size #
     #############################################################################
-    pass
+    correct_class_flag = np.zeros([num_train, num_classes])
+    correct_class_flag[np.arange(correct_class_flag.shape[0]), y] = 1.0
+    
+    dLdZ = np.ones([num_train, num_classes])
+    dLdZ = np.multiply(dLdZ, scores_exp / scores_exp_sum[:, None])
+    dLdZ -= correct_class_flag
+
+    dW2 = a1.T.dot(dLdZ)
+    dW2 /= num_train
+    dW2 += reg * W2
+
+    grads['W2'] = dW2
+    grads['b2'] = dLdZ.sum(axis = 0) / num_train
+
+    dLda1 = dLdZ.dot(W2.T)
+    # Propogate gradients only where the corresponding z1 elements > 0
+    # (and contribute to a1).
+    dLdz1 = np.multiply(dLda1, (a1 > 0) * 1)
+    dW1 = X.T.dot(dLdz1)
+    dW1 /= num_train
+    dW1 += reg * W1
+    grads['W1'] = dW1
+    grads['b1'] = dLdz1.sum(axis = 0) / num_train
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
-
     return loss, grads
 
   def train(self, X, y, X_val, y_val,
@@ -214,5 +249,3 @@ class TwoLayerNet(object):
     ###########################################################################
 
     return y_pred
-
-
