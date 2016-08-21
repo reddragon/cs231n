@@ -50,8 +50,8 @@ class TwoLayerNet(object):
     C = num_classes
     self.params['W1'] = np.random.normal(0, weight_scale, (D, H))
     self.params['W2'] = np.random.normal(0, weight_scale, (H, C))
-    self.params['b1'] = np.zeros((H, 1))
-    self.params['b2'] = np.zeros((C, 1))
+    self.params['b1'] = np.zeros((H))
+    self.params['b2'] = np.zeros((C))
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################
