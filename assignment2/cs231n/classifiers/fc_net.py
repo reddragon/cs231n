@@ -217,6 +217,7 @@ class FullyConnectedNet(object):
 
     print 'self.use_batchnorm: ', self.use_batchnorm
     print 'Set bn_params. Length: ', len(self.bn_params), ', Num Layers: ', self.num_layers
+    print 'self.use_dropout: ', self.use_dropout, ', dropout_param: ', self.dropout_param
     # Cast all parameters to the correct datatype
     for k, v in self.params.iteritems():
       self.params[k] = v.astype(dtype)
@@ -235,7 +236,7 @@ class FullyConnectedNet(object):
 
     # Set train/test mode for batchnorm params and dropout param since they
     # behave differently during training and testing.
-    if self.dropout_param is not None:
+    if self.dropout_param is not None and self.dropout_param != {}:
       self.dropout_param['mode'] = mode
     if self.use_batchnorm:
       for bn_param in self.bn_params:
@@ -266,9 +267,9 @@ class FullyConnectedNet(object):
             if self.use_batchnorm:
                 # print 'Num Layers: ', self.num_layers, ', Layer Sizes: ', len(self.layer_sizes)
                 # print idx, len(self.layer_sizes), len(self.bn_params), self.num_layers
-                f = lambda x, w, b: affine_bn_relu_forward(x, w, b, self.bn_params[idx])
+                f = lambda x, w, b: affine_bn_relu_forward(x, w, b, self.bn_params[idx], dropout_param = self.dropout_param)
             else:
-                f = lambda x, w, b: affine_relu_forward(x, w, b)
+                f = lambda x, w, b: affine_relu_forward(x, w, b, dropout_param = self.dropout_param)
 
         inp, ci = f(inp, wi, bi)
         cache[idxp1] = ci
@@ -312,9 +313,9 @@ class FullyConnectedNet(object):
         f = lambda dx, cc: affine_backward(dx, cc)
         if idxp1 < len(self.layer_sizes):
             if self.use_batchnorm:
-                f = lambda dx, cc: affine_bn_relu_backward(dx, cc)
+                f = lambda dx, cc: affine_bn_relu_backward(dx, cc, dropout_param = self.dropout_param)
             else:
-                f = lambda dx, cc: affine_relu_backward(dx, cc)
+                f = lambda dx, cc: affine_relu_backward(dx, cc, dropout_param = self.dropout_param)
 
         ci = cache[idxp1]
         # print idxp1, len(ci)
