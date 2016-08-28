@@ -52,7 +52,7 @@ def affine_relu_backward(dout, cache, dropout_param = None):
   dx, dw, db = affine_backward(da, fc_cache)
   return dx, dw, db
 
-def affine_bn_relu_backward(dout, cache):
+def affine_bn_relu_backward(dout, cache, dropout_param = None):
   """
   Backward pass for the affine-bn-relu convenience layer
   """
