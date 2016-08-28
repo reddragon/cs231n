@@ -175,21 +175,37 @@ def batchnorm_forward(x, gamma, beta, bn_param):
     # the momentum variable to update the running mean and running variance,    #
     # storing your result in the running_mean and running_var variables.        #
     #############################################################################
-    sample_mean = x.mean(axis = 0)
-    sample_std = x.std(axis = 0)
-    sample_var = sample_std ** 2
+    mu = x.mean(axis = 0)
+    xmm = x - mu
+    xmm2 = xmm ** 2
+    var = xmm2.sum(axis = 0) / N
+    stddev = np.sqrt(var + eps)
+    istddev = 1.0 / stddev
+    norm = xmm * istddev
+    snorm = gamma * norm
+    ssnorm = snorm + beta
+    out = ssnorm
 
-    x1 = (x - sample_mean) / sample_std
-    out = gamma * x1 + beta
+    cache['x'] = x
+    cache['mu'] =  mu
+    cache['xmm'] = xmm
+    cache['xmm2'] = xmm2
+    cache['var'] = var
+    cache['stddev'] = stddev
+    cache['istddev'] = istddev
+    cache['norm'] = norm
+    cache['snorm'] = snorm
+    cache['ssnorm'] = ssnorm
+    cache['gamma'] = gamma
+    cache['beta'] = beta
+    cache['eps'] = eps
+
+    sample_mean = mu
+    sample_std = np.sqrt(var)
+    sample_var = var
 
     running_mean = running_mean * momentum + (1 - momentum) * sample_mean
     running_var  = running_var * momentum  + (1 - momentum) * sample_var
-    cache['x']  = x
-    cache['x1'] = x1
-    cache['rm'] = running_mean
-    cache['rv'] = running_var
-    cache['sm'] = sample_mean
-    cache['sv'] = sample_var
     #############################################################################
     #                             END OF YOUR CODE                              #
     #############################################################################
@@ -200,15 +216,8 @@ def batchnorm_forward(x, gamma, beta, bn_param):
     # and shift the normalized data using gamma and beta. Store the result in   #
     # the out variable.                                                         #
     #############################################################################
-    running_std = np.sqrt(running_var)
-    x1 = (x - running_mean) / running_std
+    x1 = (x - running_mean) / np.sqrt(running_var + eps)
     out = gamma * x1 + beta
-    cache['x'] = x
-    cache['x1'] = x1
-    cache['rm'] = running_mean
-    cache['rv'] = running_var
-    cache['sm'] = sample_mean
-    cache['sv'] = sample_var
     #############################################################################
     #                             END OF YOUR CODE                              #
     #############################################################################
@@ -220,7 +229,6 @@ def batchnorm_forward(x, gamma, beta, bn_param):
   bn_param['running_var'] = running_var
 
   return out, cache
-
 
 def batchnorm_backward(dout, cache):
   """
@@ -244,10 +252,45 @@ def batchnorm_backward(dout, cache):
   # TODO: Implement the backward pass for batch normalization. Store the      #
   # results in the dx, dgamma, and dbeta variables.                           #
   #############################################################################
-  x1 = cache['x1']
-  dx = dout
-  dgamma = np.sum(dout * x1, axis = 0)
-  dbeta = np.sum(dout, axis = 0)
+  # Help was sought from:
+  # https://kratzert.github.io/2016/02/12/understanding-the-gradient-flow-through-the-batch-normalization-layer.html
+  x = cache['x']
+  mu = cache['mu']
+  xmm = cache['xmm']
+  xmm2 = cache['xmm2']
+  var = cache['var']
+  stddev = cache['stddev']
+  istddev = cache['istddev']
+  norm = cache['norm']
+  snorm = cache['snorm']
+  ssnorm = cache['ssnorm']
+  gamma = cache['gamma']
+  beta = cache['beta']
+  eps = cache['eps']
+
+  N = x.shape[0]
+  D = x.shape[1]
+
+  den = N
+  dssnorm = dout
+  dsnorm = dssnorm
+  dgamma = np.sum(dsnorm * norm, axis = 0)
+  dbeta = np.sum(dssnorm, axis = 0)
+
+  dnorm = gamma * dout
+  dxmmd1 = dnorm * istddev
+  distddev = np.sum(dnorm * xmm, axis = 0)
+  dstddev = distddev * (-1.0 / stddev**2)
+  dvar = dstddev * 0.5 * (1.0 / np.sqrt(var + eps))
+  dxmm2 = dvar * np.ones_like(x) * 1.0 / N
+  dxmmd2 = 2 * xmm * dxmm2
+  dxmm = dxmmd1 + dxmmd2
+
+  dx1 = dxmm
+  dm = -np.sum(dxmm, axis = 0)
+  dx2 = dm * 1.0 / N * np.ones_like(x)
+  dx = dx1 + dx2
+
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################

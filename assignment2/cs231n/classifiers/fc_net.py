@@ -166,8 +166,10 @@ class FullyConnectedNet(object):
     self.num_layers = 1 + len(hidden_dims)
     self.dtype = dtype
     self.params = {}
-    self.layer_sizes = hidden_dims
-    self.layer_sizes.append(num_classes)
+    self.layer_sizes = np.copy(hidden_dims)
+    np.append(self.layer_sizes, num_classes)
+    print self.layer_sizes
+    print 'Num Layers: ', self.num_layers, ', Layer Sizes Size: ', len(self.layer_sizes)
 
     ############################################################################
     # TODO: Initialize the parameters of the network, storing all values in    #
@@ -213,10 +215,13 @@ class FullyConnectedNet(object):
     if self.use_batchnorm:
       self.bn_params = [{'mode': 'train'} for i in xrange(self.num_layers - 1)]
 
+    print 'self.use_batchnorm: ', self.use_batchnorm
+    print 'Set bn_params. Length: ', len(self.bn_params), ', Num Layers: ', self.num_layers
     # Cast all parameters to the correct datatype
     for k, v in self.params.iteritems():
       self.params[k] = v.astype(dtype)
 
+    print 'Ending init with, num_layers: ', self.num_layers
 
   def loss(self, X, y=None):
     """
@@ -224,6 +229,7 @@ class FullyConnectedNet(object):
 
     Input / output: Same as TwoLayerNet above.
     """
+    # print 'Computing loss, self.num_layers: ', self.num_layers
     X = X.astype(self.dtype)
     mode = 'test' if y is None else 'train'
 
@@ -255,9 +261,14 @@ class FullyConnectedNet(object):
         wi = self.params['W' + str(idxp1)]
         bi = self.params['b' + str(idxp1)]
 
-        f = lambda x, w, b: affine_relu_forward(x, w, b)
-        if idxp1 == len(self.layer_sizes):
-            f = lambda x, w, b: affine_forward(x, w, b)
+        f = lambda x, w, b: affine_forward(x, w, b)
+        if idx < len(self.layer_sizes) - 1:
+            if self.use_batchnorm:
+                # print 'Num Layers: ', self.num_layers, ', Layer Sizes: ', len(self.layer_sizes)
+                # print idx, len(self.layer_sizes), len(self.bn_params), self.num_layers
+                f = lambda x, w, b: affine_bn_relu_forward(x, w, b, self.bn_params[idx])
+            else:
+                f = lambda x, w, b: affine_relu_forward(x, w, b)
 
         inp, ci = f(inp, wi, bi)
         cache[idxp1] = ci
@@ -298,9 +309,12 @@ class FullyConnectedNet(object):
     inp = dxf
     for idx in xrange(len(self.layer_sizes)):
         idxp1 = len(self.layer_sizes) - idx
-        f = lambda dx, cc: affine_relu_backward(dx, cc)
-        if idxp1 == len(self.layer_sizes):
-            f = lambda dx, cc: affine_backward(dx, cc)
+        f = lambda dx, cc: affine_backward(dx, cc)
+        if idxp1 < len(self.layer_sizes):
+            if self.use_batchnorm:
+                f = lambda dx, cc: affine_bn_relu_backward(dx, cc)
+            else:
+                f = lambda dx, cc: affine_relu_backward(dx, cc)
 
         ci = cache[idxp1]
         # print idxp1, len(ci)
