@@ -589,7 +589,32 @@ def max_pool_forward_naive(x, pool_param):
   #############################################################################
   # TODO: Implement the max pooling forward pass                              #
   #############################################################################
-  pass
+  N = x.shape[0]
+  C = x.shape[1]
+  H = x.shape[2]
+  W = x.shape[3]
+
+  HH = pool_param['pool_height']
+  WW = pool_param['pool_width']
+  stride = pool_param['stride']
+
+  Ho = 1 + (H - HH) / stride
+  Wo = 1 + (W - WW) / stride
+  out = np.zeros((N, C, Ho, Wo))
+  i = 0
+  j = 0
+  oi = 0
+  oj = 0
+  while i + HH <= H:
+      j = 0
+      oj = 0
+      while j + WW <= W:
+          x_window = np.amax(x[:, :, i:i+HH, j:j+WW], axis=(2,3))
+          out[:, :, oi, oj] = x_window
+          j += stride
+          oj += 1
+      i += stride
+      oi += 1
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
@@ -612,7 +637,46 @@ def max_pool_backward_naive(dout, cache):
   #############################################################################
   # TODO: Implement the max pooling backward pass                             #
   #############################################################################
-  pass
+  x, pool_param = cache
+  N = x.shape[0]
+  C = x.shape[1]
+  H = x.shape[2]
+  W = x.shape[3]
+
+  HH = pool_param['pool_height']
+  WW = pool_param['pool_width']
+  stride = pool_param['stride']
+
+  Ho = 1 + (H - HH) / stride
+  Wo = 1 + (W - WW) / stride
+  dx = np.zeros_like(x)
+  i = 0
+  j = 0
+  oi = 0
+  oj = 0
+  while i + HH <= H:
+      j = 0
+      oj = 0
+      while j + WW <= W:
+          # Find the valid input at (i,j)
+          xw = x[:, :, i:i+HH, j:j+WW]
+
+          # Compute the valid input over each 'window' of WW * HH
+          xwm = np.amax(xw, axis=(2,3))
+
+          # Reshape to compute a mask to compare each value in the windows.
+          xwm_r = np.repeat(xwm, HH*WW).T.reshape(N, C, WW, HH)
+          # As per chain rule, the gradient propagates to the maximum element.
+          dout_r = np.repeat(dout[:,:,oi,oj], HH*WW).T.reshape(N, C, WW, HH)
+          # We have found the largest element (value would be 1.0)
+          # For that element, the gradient would get propagated.
+          xw_mask = ((xw >= xwm_r) * 1.0) * dout_r
+
+          dx[:, :, i:i+HH, j:j+WW] += xw_mask
+          j += stride
+          oj += 1
+      i += stride
+      oi += 1
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
