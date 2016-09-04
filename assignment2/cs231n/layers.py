@@ -494,7 +494,76 @@ def conv_backward_naive(dout, cache):
   #############################################################################
   # TODO: Implement the convolutional backward pass.                          #
   #############################################################################
-  pass
+  x, w, b, conv_param = cache
+  N = x.shape[0]
+  db = np.zeros_like(b)
+  db = np.sum(dout, axis=(0,2,3))
+
+  C = x.shape[1]
+  H = x.shape[2]
+  W = x.shape[3]
+
+  F = w.shape[0]
+  #print 'F is ', F
+  HH = w.shape[2]
+  WW = w.shape[3]
+
+  stride = conv_param['stride']
+  pad = conv_param['pad']
+
+  Hp = H + 2*pad
+  Wp = W + 2*pad
+  xp = np.pad(x, ((0, 0), (0, 0), (pad, pad), (pad, pad)), 'constant')
+
+  Ho = 1 + (H + 2 * pad - HH) / stride
+  Wo = 1 + (W + 2 * pad - WW) / stride
+  out = np.zeros((N, F, Ho, Wo))
+
+  i = 0
+  j = 0
+  oi = 0
+  oj = 0
+
+  #print xp.shape
+  dxp = np.zeros_like(xp)
+  dw = np.zeros_like(w)
+  #dout2 = np.zeros_like(dout)
+  #print 'dout: '
+  #print dout
+  #print '---'
+  while i + HH <= Hp:
+      j = 0
+      oj = 0
+      while j + WW <= Wp:
+          dx_window = xp[:, :, i:i+HH, j:j+WW]
+          for f in xrange(F):
+              #print 'Picking f as: ', f, ', where dout is: ', dout.shape
+              dout_window = dout[:, f, oi, oj]
+              wf = w[f]
+
+              #print dout_window.shape
+              dw_grad = (dx_window.reshape(N, C * HH * WW).T * dout_window).T.sum(axis = 0)
+              dw[f] += dw_grad.reshape(C, HH, WW)
+
+              #print wf
+              #print dout_window
+              #print np.tile(np.reshape(wf, C * HH * WW), N).reshape(N, C * HH * WW).shape
+              dxp_grad = (np.tile(np.reshape(wf, C * HH * WW), N).reshape(N, C * HH * WW).T * dout_window).T.reshape(N, C, HH, WW)
+              #print grad
+              #print dxp[:,:,i:i+HH,j:j+WW].shape
+              #print grad.shape
+              dxp[:,:,i:i+HH,j:j+WW] += dxp_grad
+              #print dxp
+              #print dout_window.shape
+              #print wf.shape
+          j += stride
+          oj += 1
+      i += stride
+      oi += 1
+  #print dxp
+  dx = dxp[:,:,pad:H+1,pad:W+1]
+  #print dx
+  #dx = np.zeros_like(x)
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
