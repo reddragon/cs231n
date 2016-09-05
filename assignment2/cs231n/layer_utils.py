@@ -99,7 +99,6 @@ def conv_relu_backward(dout, cache):
   dx, dw, db = conv_backward_fast(da, conv_cache)
   return dx, dw, db
 
-
 def conv_relu_pool_forward(x, w, b, conv_param, pool_param):
   """
   Convenience layer that performs a convolution, a ReLU, and a pool.
