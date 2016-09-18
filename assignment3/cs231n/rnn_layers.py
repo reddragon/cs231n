@@ -69,7 +69,7 @@ def rnn_step_backward(dnext_h, cache):
   dx = dsum.dot(Wx.T)
   dWx = x.T.dot(dsum)
   dprev_h = dsum.dot(Wh.T)
-  dWh = dprev_h.T.dot(dsum)
+  dWh = prev_h.T.dot(dsum)
   ##############################################################################
   #                               END OF YOUR CODE                             #
   ##############################################################################
@@ -100,7 +100,17 @@ def rnn_forward(x, h0, Wx, Wh, b):
   # input data. You should use the rnn_step_forward function that you defined  #
   # above.                                                                     #
   ##############################################################################
-  pass
+  N, T, D = x.shape
+  H = b.shape[0]
+  prev_h = h0
+  h = np.zeros((N, T, H))
+  cache = []
+  for t in xrange(T):
+      xt = x[:, t, :]
+      ht, cache_t = rnn_step_forward(xt, prev_h, Wx, Wh, b)
+      h[:,t,:] = ht
+      prev_h = ht
+      cache.append(cache_t)
   ##############################################################################
   #                               END OF YOUR CODE                             #
   ##############################################################################
@@ -127,7 +137,24 @@ def rnn_backward(dh, cache):
   # sequence of data. You should use the rnn_step_backward function that you   #
   # defined above.                                                             #
   ##############################################################################
-  pass
+  N, T, H = dh.shape
+  D = cache[0][0].shape[1]
+  db = np.zeros(H)
+  dprev = np.zeros((N, H))
+  dx = np.zeros((N, T, D))
+  dWx = np.zeros((D, H))
+  dWh = np.zeros((H, H))
+  for t in reversed(xrange(T)):
+      cache_t = cache[t]
+      dht = dh[:, t, :]
+      dht = dht + dprev
+      dxt, dprev_ht, dWxt, dWht, dbt = rnn_step_backward(dht, cache_t)
+      dx[:, t, :] = dxt
+      db = db + dbt
+      dWx = dWx + dWxt
+      dWh = dWh + dWht
+      dprev = dprev_ht
+  dh0 = dprev
   ##############################################################################
   #                               END OF YOUR CODE                             #
   ##############################################################################
